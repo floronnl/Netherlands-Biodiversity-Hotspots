@@ -26,7 +26,7 @@ HotspotStatus = function(species,                             # Vector of observ
                          speciesTable = NULL,                 # Not required, dataframe containing above 2 vectors
                          gridcellList,                        # Vector of all gridcells
                          numberOfHotspots = 10,               # Number of hotspots to be found
-                         subTopMode = "none",                 # How the subtop should be calculated
+                         subTopMode = "none",                 # How the subtop should be calculated ("none", "amount", "sd", "2sd")
                          subTop = 250,                        # Number of subtop gridcells (if subTopMode is amount)
                          returnTF = T,                        # Whether hotspot status should be returned as true/false or 1/0
                          printProgress = F                    # Whether calculation progress should be printed
