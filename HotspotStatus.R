@@ -2,39 +2,44 @@
 #### Created by Dion van der Hak ####
 #####################################
 #
-# Version: 0.5.0
+# Version: 0.5.1
 #
 ### Description: ###
 #
-# This function takes the observations as input, as well as the species list and a list of all gridcells.
-# There must not be any double observations (same species in same gridcell).
-# The species list must only contain species that are counted, if a species was observed but does not occur in the
-# species list, it is ignored.
-# If no species list is given, all species are counted.
-# The gridcell list must contain all relevant gridcells, also ones without observations.
-# The gridcell names must be unique and the x and y coordinate appended (so x: 40 and y: 352 becomes gridcell: 40352).
+# This function can be used to find hotspots of biodiversity using observations of species per grid cell.
 #
-# This function returns a dataframe with for each gridcell whether or not they meet the Hotspot requirement.
+# This function takes the observations as input, as well as the species list and a list of all grid cells.
+# There must not be any double observations (same species in same grid cell).
+# The species list must only contain species that are counted, if a species was observed but does not occur in the
+# species list, it is not used when determining hotspots.
+# If no species list is given, all species are counted.
+# The grid cell list must contain all relevant grid cells, also ones without observations.
+# The grid cell names must be unique and the x and y coordinate appended (so x: 40 and y: 352 becomes grid cell: 40352).
+# Grid cell coordinates need to be integers and adjacent grid cells need to have consecutive coordinates.
+# For example: 	40352, 	41352, 	42352, 	43352
+#				40351,	41351,	42351, 	43351
+#
+# This function returns a data frame with for each grid cell whether or not they meet the Hotspot requirement, as well as their richness.
 #
 
 HotspotStatus = function(species,                             # Vector of observed species
-                         x,                                   # Vecor of x coordinates of the observations
-                         y,                                   # Vecor of y coordinates of the observations
-                         observationTable = NULL,             # Not required, dataframe containing above 3 vectors
+                         x,                                   # Vector of x coordinates of the observations
+                         y,                                   # Vector of y coordinates of the observations
+                         observationTable = NULL,             # Not required, data frame containing above 3 vectors
                          speciesList = NULL,                  # Vector of species to be counted, if not present all species will be counted
-                         speciesGroups = c("Biodiversity"),   # Not required, vector of species groups the species in speciesList belong in
-                         speciesTable = NULL,                 # Not required, dataframe containing above 2 vectors
-                         gridcellList,                        # Vector of all gridcells
+                         speciesGroups = c("Biodiversity"),   # Not required, vector of species groups the species in speciesList belong in. Hotspots will be determined per group
+                         speciesTable = NULL,                 # Not required, data frame containing above 2 vectors
+                         gridcellList,                        # Vector of all grid cells
                          numberOfHotspots = 10,               # Number of hotspots to be found
                          subTopMode = "none",                 # How the subtop should be calculated ("none", "amount", "sd", "2sd")
-                         subTop = 250,                        # Number of subtop gridcells (if subTopMode is amount)
+                         subTop = 250,                        # Number of subtop grid cells (if subTopMode is amount)
                          returnTF = T,                        # Whether hotspot status should be returned as true/false or 1/0
                          printProgress = F                    # Whether calculation progress should be printed
                          ) {                      
 
   
   ## Init ##
-  # Returns error if one of the entered variables has the wrong datatype
+  # Returns an error if one of the entered variables has the wrong data type
   stopifnot(is.numeric(numberOfHotspots))
   stopifnot(is.numeric(subTop))
   stopifnot(is.logical(returnTF))
@@ -50,7 +55,7 @@ HotspotStatus = function(species,                             # Vector of observ
   require(reshape2)
   require(plyr)
   
-  # Fix variables to allow for the user to point to the dataframe
+  # Fix variables to allow for the user to point to the data frame
   species = eval(substitute(species), observationTable, parent.frame())
   x = eval(substitute(x), observationTable, parent.frame())
   y = eval(substitute(y), observationTable, parent.frame())
@@ -67,12 +72,12 @@ HotspotStatus = function(species,                             # Vector of observ
   
   
   ## Functions ##
-  # Get x coordinate from gridcell number
+  # Get x coordinate from grid cell number
   getx = function(gridcell) {
     return(as.numeric(substr(as.character(gridcell), 1, nchar(gridcell)-3)))
   }
   
-  # Get y coordinate from gridcell number
+  # Get y coordinate from grid cell number
   gety = function(gridcell) {
     return(as.numeric(substr(as.character(gridcell),nchar(gridcell)-2,nchar(gridcell))))
   }
@@ -89,10 +94,10 @@ HotspotStatus = function(species,                             # Vector of observ
     return(Hotspot_status)
   }
   
-  # Checks the surroundings of a given gridcell for subtop gridcells
-  # gridcell is a list of all gridcells, of which x and y are coordinates
-  # Hotspot is the gridcell number of the hotspot center: the cell whose surroundings need to be checked
-  # subtop is whether gridcell is a subtop or not (T/F)
+  # Checks the surroundings of a given grid cell for subtop grid cells
+  # gridcell is a list of all grid cells, of which x and y are coordinates
+  # Hotspot is the grid cell number of the hotspot centre: the cell whose surroundings need to be checked
+  # subtop is whether the grid cell is a subtop or not (T/F)
   checkSurroundings = function(gridcell, x, y, Hotspot, subtop, data = NULL) {
     # Allow for data substitution
     gridcell = eval(substitute(gridcell), data, parent.frame())
@@ -107,7 +112,7 @@ HotspotStatus = function(species,                             # Vector of observ
     data$hotspot = F # Create hotspot column
     data$hotspot[data$gridcell == Hotspot] = T # Hotspot cells are hotspots
 
-    while(length(data$newCell[data$newCell == T]) != 0) { # Keep running until no more new hotspot gridcells have been found
+    while(length(data$newCell[data$newCell == T]) != 0) { # Keep running until no more new hotspot grid cells have been found
       for(i in data$gridcell[data$newCell == T]) { # For each hotspot cell whose surroundings haven't been checked yet
         data$newCell[data$gridcell == i] = F # Cell is no longer new since it's surroundings are going to be checked
         x = data$x[data$gridcell == i]
@@ -128,7 +133,7 @@ HotspotStatus = function(species,                             # Vector of observ
         }
       }
     }
-    return(data$gridcell[data$hotspot == T]) # Returns vector of gridcells that are part of a hotspot
+    return(data$gridcell[data$hotspot == T]) # Returns vector of grid cells that are part of a hotspot
   }
   
 
@@ -139,7 +144,7 @@ HotspotStatus = function(species,                             # Vector of observ
   # Bind species together into table
   speciesTable = data.frame(speciesList, speciesGroups)
   
-  # Transform the gridcell list into a table
+  # Transform the grid cell list into a table
   gridcellList = cbind(gridcellList)
   colnames(gridcellList) = c("Gridcell")
   
@@ -165,7 +170,7 @@ HotspotStatus = function(species,                             # Vector of observ
           observationTable$species %in% speciesTable$speciesList[
             speciesTable$speciesGroups == i]]))
     colnames(temp) = c("Gridcell", i)
-    temp = merge(gridcellList, temp, by = "Gridcell", all = T) # Merges the richness table with the gridcell list
+    temp = merge(gridcellList, temp, by = "Gridcell", all = T) # Merges the richness table with the grid cell list
     temp[is.na(temp)] = 0 # Removes NAs
     richnessTable = merge(richnessTable, temp, by = "Gridcell", all = T) # Adds current group to the richness table
     richnessTable[is.na(richnessTable)] = 0 # Removes NAs
@@ -196,15 +201,15 @@ HotspotStatus = function(species,                             # Vector of observ
     # Create hotspots
     hotspotList = c() # List of hotspot IDs that have been added
     richnessTable[paste0("Hotspot_", i)] = F # No Hotspots have been defined yet
-    richnessTable[paste0("hotspot_ID_", i)] = 0 # All gridcells have hotspot ID 0
+    richnessTable[paste0("hotspot_ID_", i)] = 0 # All grid cells have hotspot ID 0
     tempNumberOfHotspots = numberOfHotspots
     while(length(hotspotList) < tempNumberOfHotspots) { # New hotspots will be created until the correct amount has been reached
-      m = richnessTable$Gridcell[richnessTable[i] == max(richnessTable[i][richnessTable[paste0("hotspot_ID_", i)] == 0]) & richnessTable[paste0("hotspot_ID_", i)] == 0][1] # Gridcell number of cell with the highest richness that is not a hotspot yet
+      m = richnessTable$Gridcell[richnessTable[i] == max(richnessTable[i][richnessTable[paste0("hotspot_ID_", i)] == 0]) & richnessTable[paste0("hotspot_ID_", i)] == 0][1] # Grid cell number of cell with the highest richness that is not a hotspot yet
       n = length(hotspotList) + 1 # ID for current hotspot
       richnessTable[paste0("Hotspot_", i)][richnessTable$Gridcell == m,] = T # Sets current Hotspot cell as Hotspot cell
       richnessTable[paste0("hotspot_ID_", i)][richnessTable$Gridcell == m,] = n # Sets hotspot ID for this Hotspot cell
       if(subTopMode != "none") {
-        temp = checkSurroundings(Gridcell, x, y, m, get(paste0("subtop_", i)), data = richnessTable) # Check surroundings of each Hotspot cell for subtop cells, returning gridcell numbers of all valid cells
+        temp = checkSurroundings(Gridcell, x, y, m, get(paste0("subtop_", i)), data = richnessTable) # Check surroundings of each Hotspot cell for subtop cells, returning grid cell numbers of all valid cells
         richnessTable[paste0("hotspot_ID_", i)][richnessTable$Gridcell %in% temp,] = n # Sets hotspot ID for accepted hotspot cells
       }
       hotspotList = append(hotspotList, n) # Makes a list of hotspot IDs
@@ -232,6 +237,7 @@ HotspotStatus = function(species,                             # Vector of observ
 
 ### Changelog: ###
 #
+# 0.5.1: Added some clarifications and fixed some typos in the comments
 # 0.5.0: Cleaned up for GitHub publication
 # 0.4.1: Fixed crash when subTopMode is "none"
 # 0.4.0: Ties will now be included in the hotspot list
